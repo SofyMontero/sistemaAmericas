@@ -877,60 +877,66 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 
-    document.querySelectorAll('.editar-producto-btn').forEach(button => {
-        button.addEventListener('click', function() {
-            const producto = JSON.parse(this.dataset.producto);
+    document.addEventListener('click', function(e) {
+        const button = e.target.closest('.editar-producto-btn');
+        if (!button) {
+            return;
+        }
 
-            document.getElementById('edit_id_producto').value = producto.id_producto || '';
-            document.getElementById('edit_codigo_productos').value = producto.codigo_productos || '';
-            document.getElementById('edit_descripcion_producto').value = producto.descripcion_producto || '';
-            document.getElementById('edit_cantidad_paca_producto').value = producto.cantidad_paca_producto || 0;
-            document.getElementById('edit_precio_unidad_producto').value = producto.precio_unidad_producto || 0;
-            document.getElementById('edit_precio_paca_producto').value = producto.precio_paca_producto || 0;
-            document.getElementById('edit_id_cate_producto').value = producto.id_cate_producto || 1;
-            document.getElementById('edit_acti_Unidad').value = String(producto.acti_Unidad ?? 0);
-            document.getElementById('edit_estado_producto').value = String(producto.estado_producto ?? '1');
-            document.getElementById('edit_imagen_producto').value = producto.imagen_producto || '';
+        const producto = JSON.parse(button.dataset.producto);
 
-            $('#productoModal').modal('show');
-        });
+        document.getElementById('edit_id_producto').value = producto.id_producto || '';
+        document.getElementById('edit_codigo_productos').value = producto.codigo_productos || '';
+        document.getElementById('edit_descripcion_producto').value = producto.descripcion_producto || '';
+        document.getElementById('edit_cantidad_paca_producto').value = producto.cantidad_paca_producto || 0;
+        document.getElementById('edit_precio_unidad_producto').value = producto.precio_unidad_producto || 0;
+        document.getElementById('edit_precio_paca_producto').value = producto.precio_paca_producto || 0;
+        document.getElementById('edit_id_cate_producto').value = producto.id_cate_producto || 1;
+        document.getElementById('edit_acti_Unidad').value = String(producto.acti_Unidad ?? 0);
+        document.getElementById('edit_estado_producto').value = String(producto.estado_producto ?? '1');
+        document.getElementById('edit_imagen_producto').value = producto.imagen_producto || '';
+
+        $('#productoModal').modal('show');
     });
 
-    document.querySelectorAll('.estado-producto-select').forEach(select => {
-        select.addEventListener('change', function() {
-            const form = this.closest('form');
-            const formData = new FormData(form);
-            const estadoAnterior = this.dataset.estadoAnterior;
+    document.addEventListener('change', function(e) {
+        const select = e.target.closest('.estado-producto-select');
+        if (!select) {
+            return;
+        }
 
-            formData.append('ajax', '1');
-            this.disabled = true;
+        const form = select.closest('form');
+        const formData = new FormData(form);
+        const estadoAnterior = select.dataset.estadoAnterior;
 
-            fetch(window.location.pathname, {
-                method: 'POST',
-                body: formData
-            })
-            .then(response => response.json().then(data => {
-                if (!response.ok || !data.success) {
-                    throw new Error(data.message || 'No se pudo actualizar el estado');
-                }
-                return data;
-            }))
-            .then(data => {
-                const estado = String(data.estado);
-                this.dataset.estadoAnterior = estado;
-                this.classList.toggle('estado-activo', estado === '1');
-                this.classList.toggle('estado-inactivo', estado !== '1');
-                showToast('success', 'Estado actualizado', 'El estado del producto se guardo correctamente.');
-            })
-            .catch(error => {
-                this.value = estadoAnterior;
-                this.classList.toggle('estado-activo', estadoAnterior === '1');
-                this.classList.toggle('estado-inactivo', estadoAnterior !== '1');
-                showToast('error', 'Error', error.message);
-            })
-            .finally(() => {
-                this.disabled = false;
-            });
+        formData.append('ajax', '1');
+        select.disabled = true;
+
+        fetch(window.location.pathname, {
+            method: 'POST',
+            body: formData
+        })
+        .then(response => response.json().then(data => {
+            if (!response.ok || !data.success) {
+                throw new Error(data.message || 'No se pudo actualizar el estado');
+            }
+            return data;
+        }))
+        .then(data => {
+            const estado = String(data.estado);
+            select.dataset.estadoAnterior = estado;
+            select.classList.toggle('estado-activo', estado === '1');
+            select.classList.toggle('estado-inactivo', estado !== '1');
+            showToast('success', 'Estado actualizado', 'El estado del producto se guardo correctamente.');
+        })
+        .catch(error => {
+            select.value = estadoAnterior;
+            select.classList.toggle('estado-activo', estadoAnterior === '1');
+            select.classList.toggle('estado-inactivo', estadoAnterior !== '1');
+            showToast('error', 'Error', error.message);
+        })
+        .finally(() => {
+            select.disabled = false;
         });
     });
 });
