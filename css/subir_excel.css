@@ -113,6 +113,33 @@
     background: #f0fdf4;
 }
 
+.upload-zone.is-processing {
+    pointer-events: none;
+    cursor: not-allowed;
+    opacity: 0.75;
+}
+
+#uploadForm {
+    position: relative;
+}
+
+#uploadProcessingOverlay {
+    display: none;
+    position: absolute;
+    inset: 0;
+    z-index: 30;
+    background: rgba(255, 255, 255, 0.78);
+    align-items: center;
+    justify-content: center;
+    font-weight: 700;
+    color: #374151;
+    border-radius: 12px;
+}
+
+#uploadProcessingOverlay.is-active {
+    display: flex;
+}
+
 .upload-icon {
     font-size: 48px;
     color: #9ca3af;
@@ -162,4 +189,61 @@
 .stat-label {
     font-size: 12px;
     opacity: 0.8;
+}
+
+.price-edit-wrap {
+    position: relative;
+    display: inline-block;
+    width: 110px;
+    vertical-align: middle;
+}
+
+.price-prefix {
+    position: absolute;
+    left: 8px;
+    top: 50%;
+    transform: translateY(-50%);
+    z-index: 2;
+    font-size: 13px;
+    line-height: 1;
+    pointer-events: none;
+}
+
+.price-input.form-control,
+.price-input {
+    width: 110px !important;
+    max-width: 110px !important;
+    display: inline-block !important;
+    text-align: right;
+    padding: 4px 8px 4px 20px !important;
+    margin: 0 !important;
+    float: none !important;
+}
+
+.producto-row.precio-modificado {
+    background: rgba(245, 158, 11, 0.12);
+}
+
+.producto-row.precio-guardado {
+    background: rgba(16, 185, 129, 0.18);
+    transition: background 0.4s ease;
+}
+
+.btn-guardar-precio:disabled {
+    opacity: 0.35;
+    cursor: not-allowed;
+}
+
+#submitBtn:disabled,
+#submitBtn.disabled,
+#submitBtn.is-processing {
+    background-color: #9e9e9e !important;
+    background-image: none !important;
+    border-color: #9e9e9e !important;
+    color: #fff !important;
+    opacity: 0.7 !important;
+    pointer-events: none !important;
+    cursor: not-allowed !important;
+    box-shadow: none !important;
+    filter: grayscale(1);
 }

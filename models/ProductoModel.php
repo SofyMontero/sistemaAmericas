@@ -1,5 +1,5 @@
 <?php
-require_once "database.php";
+require_once __DIR__ . "/database.php";
 
 class Producto
 {
@@ -325,6 +325,27 @@ class Producto
             return $query->execute();
         } catch (Exception $e) {
             error_log("Error en actualizarPreciosPorCodigo: " . $e->getMessage());
+            return false;
+        }
+    }
+
+    public function actualizarPreciosPorId($id_producto, $precio_unidad_producto, $precio_paca_producto)
+    {
+        try {
+            $query = $this->pdo->prepare("
+            UPDATE productos SET
+                precio_unidad_producto = :precio_unidad_producto,
+                precio_paca_producto = :precio_paca_producto
+            WHERE id_producto = :id_producto
+        ");
+
+            $query->bindParam(':id_producto', $id_producto, PDO::PARAM_INT);
+            $query->bindParam(':precio_unidad_producto', $precio_unidad_producto);
+            $query->bindParam(':precio_paca_producto', $precio_paca_producto);
+
+            return $query->execute();
+        } catch (Exception $e) {
+            error_log("Error en actualizarPreciosPorId: " . $e->getMessage());
             return false;
         }
     }

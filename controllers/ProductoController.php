@@ -126,6 +126,205 @@ function leerCSVConUTF8($archivo, $delimitador = ',')
     return $datos;
 }
 
+// Descargar plantilla CSV con productos actualizados
+if ($_SERVER["REQUEST_METHOD"] === "GET" && isset($_GET["accion"]) && $_GET["accion"] === "descargar_plantilla") {
+    try {
+        $producto = new Producto();
+        $productos = $producto->obtenerProductosLista(0);
+
+        $nombreArchivo = "plantilla_productos_" . date("Y-m-d_His") . ".csv";
+
+        header("Content-Type: text/csv; charset=UTF-8");
+        header("Content-Disposition: attachment; filename=\"$nombreArchivo\"");
+        header("Pragma: no-cache");
+        header("Expires: 0");
+
+        $output = fopen("php://output", "w");
+
+        // BOM UTF-8 para que Excel abra correctamente caracteres especiales
+        fwrite($output, "\xEF\xBB\xBF");
+
+        // Encabezados en el mismo orden que espera la importación
+        fputcsv($output, [
+            "id_producto",
+            "codigo_productos",
+            "descripcion_producto",
+            "cantidad_paca_producto",
+            "precio_unidad_producto",
+            "precio_paca_producto",
+            "id_cate_producto",
+            "acti_Unidad",
+            "imagen_producto",
+            "estado_producto"
+        ], ";");
+
+        foreach ($productos as $prod) {
+            fputcsv($output, [
+                $prod["id_producto"] ?? "",
+                $prod["codigo_productos"] ?? "",
+                $prod["descripcion_producto"] ?? "",
+                $prod["cantidad_paca_producto"] ?? "",
+                $prod["precio_unidad_producto"] ?? "",
+                $prod["precio_paca_producto"] ?? "",
+                $prod["id_cate_producto"] ?? "",
+                $prod["acti_Unidad"] ?? "",
+                $prod["imagen_producto"] ?? "",
+                $prod["estado_producto"] ?? ""
+            ], ";");
+        }
+
+        fclose($output);
+        exit;
+    } catch (Exception $e) {
+        header("Location: ../views/Subir_excel_producto.php?error=" . urlencode("Error al generar plantilla: " . $e->getMessage()));
+        exit;
+    }
+}
+
+// Actualizar precios desde la lista (AJAX)
+if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST["accion"]) && $_POST["accion"] === "actualizar_precios") {
+    header("Content-Type: application/json; charset=UTF-8");
+
+    try {
+        $id_producto = limpiarValor($_POST["id_producto"] ?? "", "int");
+        $precio_unidad_producto = limpiarValor($_POST["precio_unidad_producto"] ?? "0", "float");
+        $precio_paca_producto = limpiarValor($_POST["precio_paca_producto"] ?? "0", "float");
+
+        if (!$id_producto) {
+            echo json_encode(["success" => false, "message" => "ID de producto inválido"]);
+            exit;
+        }
+
+        if ($precio_unidad_producto <= 0) {
+            echo json_encode(["success" => false, "message" => "El precio unidad debe ser mayor a 0"]);
+            exit;
+        }
+
+        if ($precio_paca_producto < 0) {
+            echo json_encode(["success" => false, "message" => "El precio paca no puede ser negativo"]);
+            exit;
+        }
+
+        $producto = new Producto();
+
+        if (!$producto->existeProducto($id_producto)) {
+            echo json_encode(["success" => false, "message" => "El producto no existe"]);
+            exit;
+        }
+
+        if ($producto->actualizarPreciosPorId($id_producto, $precio_unidad_producto, $precio_paca_producto)) {
+            echo json_encode([
+                "success" => true,
+                "message" => "Precios actualizados",
+                "precio_unidad_producto" => $precio_unidad_producto,
+                "precio_paca_producto" => $precio_paca_producto
+            ]);
+            exit;
+        }
+
+        echo json_encode(["success" => false, "message" => "No se pudieron actualizar los precios"]);
+        exit;
+    } catch (Exception $e) {
+        echo json_encode(["success" => false, "message" => "Error: " . $e->getMessage()]);
+        exit;
+    }
+}
+
+// Crear producto individual desde el formulario modal
+if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST["accion"]) && $_POST["accion"] === "crear_producto") {
+    try {
+        $codigo_productos       = limpiarValor($_POST["codigo_productos"] ?? "");
+        $descripcion_producto   = limpiarValor($_POST["descripcion_producto"] ?? "");
+        $cantidad_paca_producto = limpiarValor($_POST["cantidad_paca_producto"] ?? "1", "float") ?: 1;
+        $precio_unidad_producto = limpiarValor($_POST["precio_unidad_producto"] ?? "0", "float");
+        $precio_paca_producto   = limpiarValor($_POST["precio_paca_producto"] ?? "0", "float");
+        $id_cate_producto       = limpiarValor($_POST["id_cate_producto"] ?? "1", "int") ?: 1;
+        $acti_Unidad            = limpiarValor($_POST["acti_Unidad"] ?? "1") ?: "1";
+        $estado_producto        = limpiarValor($_POST["estado_producto"] ?? "1") ?: "1";
+        $imagen_producto        = "";
+
+        $erroresFila = [];
+
+        if ($codigo_productos === "") {
+            $erroresFila[] = "El código es obligatorio";
+        }
+        if ($descripcion_producto === "") {
+            $erroresFila[] = "La descripción es obligatoria";
+        }
+        if ($precio_unidad_producto <= 0) {
+            $erroresFila[] = "El precio unidad debe ser mayor a 0";
+        }
+
+        if (!empty($erroresFila)) {
+            header("Location: ../views/Subir_excel_producto.php?error=" . urlencode(implode(". ", $erroresFila)));
+            exit;
+        }
+
+        $producto = new Producto();
+
+        if ($producto->obtenerProductoPorCodigo($codigo_productos)) {
+            header("Location: ../views/Subir_excel_producto.php?error=" . urlencode("Ya existe un producto con el código '$codigo_productos'"));
+            exit;
+        }
+
+        // Subir imagen opcional
+        if (isset($_FILES["imagen"]) && $_FILES["imagen"]["error"] !== UPLOAD_ERR_NO_FILE) {
+            if ($_FILES["imagen"]["error"] !== UPLOAD_ERR_OK) {
+                header("Location: ../views/Subir_excel_producto.php?error=" . urlencode("Error al subir la imagen"));
+                exit;
+            }
+
+            $extension = strtolower(pathinfo($_FILES["imagen"]["name"], PATHINFO_EXTENSION));
+            $extensionesPermitidas = ["jpg", "jpeg", "png", "gif", "webp"];
+
+            if (!in_array($extension, $extensionesPermitidas, true)) {
+                header("Location: ../views/Subir_excel_producto.php?error=" . urlencode("Formato de imagen no permitido (jpg, png, gif, webp)"));
+                exit;
+            }
+
+            if ($_FILES["imagen"]["size"] > 3 * 1024 * 1024) {
+                header("Location: ../views/Subir_excel_producto.php?error=" . urlencode("La imagen no debe superar los 3MB"));
+                exit;
+            }
+
+            $directorio = "../assets/img/licores/";
+            if (!is_dir($directorio)) {
+                mkdir($directorio, 0755, true);
+            }
+
+            $nombreImagen = uniqid("prod_", true) . "." . $extension;
+            if (!move_uploaded_file($_FILES["imagen"]["tmp_name"], $directorio . $nombreImagen)) {
+                header("Location: ../views/Subir_excel_producto.php?error=" . urlencode("No se pudo guardar la imagen"));
+                exit;
+            }
+
+            // El catálogo usa imagen_producto directamente como src desde /views
+            $imagen_producto = $directorio . $nombreImagen;
+        }
+
+        if ($producto->insertarProducto(
+            $codigo_productos,
+            $descripcion_producto,
+            $cantidad_paca_producto,
+            $precio_unidad_producto,
+            $precio_paca_producto,
+            $id_cate_producto,
+            $acti_Unidad,
+            $imagen_producto,
+            $estado_producto
+        )) {
+            header("Location: ../views/Subir_excel_producto.php?creado=1&success=1&importados=1");
+            exit;
+        }
+
+        header("Location: ../views/Subir_excel_producto.php?error=" . urlencode("No se pudo crear el producto"));
+        exit;
+    } catch (Exception $e) {
+        header("Location: ../views/Subir_excel_producto.php?error=" . urlencode("Error: " . $e->getMessage()));
+        exit;
+    }
+}
+
 if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_FILES["archivo_excel"])) {
 
     // Verificaciones básicas
